@@ -119,7 +119,7 @@ BUILT-IN FUNCTIONS:
     sort, nub, group
 
     # From Data.Char
-    isDigit, isAlpha, isSpace, toUpper, toLower
+    isDigit, isAlpha, isSpace, isUpper, isLower, toUpper, toLower
 
 REQUIREMENTS:
     GHC (Glasgow Haskell Compiler) must be installed
@@ -146,6 +146,8 @@ $PHSRC
     isDigit = Data.Char.isDigit
     isAlpha = Data.Char.isAlpha
     isSpace = Data.Char.isSpace
+    isUpper = Data.Char.isUpper
+    isLower = Data.Char.isLower
     toUpper = Data.Char.toUpper
     toLower = Data.Char.toLower
     isInfixOf = Data.List.isInfixOf
