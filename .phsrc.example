@@ -1,0 +1,91 @@
+-- ~/.phsrc - Custom functions for phs
+-- This file should contain Haskell function definitions
+-- These functions will be available in all phs invocations
+
+-- Column extraction (1-indexed)
+col :: Int -> String -> String
+col n = (!! (n-1)) . words
+
+-- Trim whitespace from both ends
+trim :: String -> String
+trim = dropWhile isSpace . reverse . dropWhile isSpace . reverse
+
+-- Get basename from path
+basename :: String -> String
+basename = reverse . takeWhile (/= '/') . reverse
+
+-- Get directory name from path
+dirname :: String -> String
+dirname path = case reverse . drop 1 . dropWhile (/= '/') . reverse $ path of
+    "" -> "."
+    d  -> d
+
+-- Get file extension
+extension :: String -> String
+extension = reverse . takeWhile (/= '.') . dropWhile (== '.') . reverse
+
+-- Check if string is a number
+isNumber :: String -> Bool
+isNumber = all isDigit
+
+-- Count occurrences of a character
+count :: Char -> String -> Int
+count c = length . filter (== c)
+
+-- Convert to lowercase
+lower :: String -> String
+lower = map toLower
+
+-- Convert to uppercase
+upper :: String -> String
+upper = map toUpper
+
+-- Remove duplicate adjacent characters
+squeeze :: String -> String
+squeeze [] = []
+squeeze [x] = [x]
+squeeze (x:y:xs) = if x == y then squeeze (y:xs) else x : squeeze (y:xs)
+
+-- Split by delimiter
+split :: Char -> String -> [String]
+split _ [] = []
+split delim str = case break (== delim) str of
+    (chunk, []) -> [chunk]
+    (chunk, _:rest) -> chunk : split delim rest
+
+-- Join with delimiter
+join :: String -> [String] -> String
+join _ [] = ""
+join _ [x] = x
+join delim (x:xs) = x ++ delim ++ join delim xs
+
+-- Get nth word (1-indexed)
+word :: Int -> String -> String
+word n s = case words s of
+    ws | length ws >= n -> ws !! (n-1)
+       | otherwise -> ""
+
+-- Count words
+wc :: String -> Int
+wc = length . words
+
+-- Check if string contains substring
+contains :: String -> String -> Bool
+contains needle haystack = needle `isInfixOf` haystack
+
+-- Remove all occurrences of a character
+remove :: Char -> String -> String
+remove c = filter (/= c)
+
+-- Replace character
+replace :: Char -> Char -> String -> String
+replace old new = map (\c -> if c == old then new else c)
+
+-- Capitalize first letter
+capitalize :: String -> String
+capitalize [] = []
+capitalize (x:xs) = toUpper x : map toLower xs
+
+-- Required imports (these are automatically available in GHC)
+-- import Data.Char (isSpace, isDigit, isAlpha, toLower, toUpper)
+-- import Data.List (isInfixOf)

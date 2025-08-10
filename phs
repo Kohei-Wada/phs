@@ -1,0 +1,204 @@
+#!/bin/bash
+
+#===============================================================================
+# phs - PipeLine Haskell Script
+# A command-line tool that applies Haskell functions to input lines
+#===============================================================================
+
+#===============================================================================
+# Configuration and defaults
+#===============================================================================
+
+CONFIG_FILE="$HOME/.phsrc"
+FUNCTION="id"
+ALL_MODE=false
+SHOW_HELP=false
+
+#===============================================================================
+# Parse command line arguments
+#===============================================================================
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -c|--config)
+            if [[ -z "$2" ]]; then
+                echo "Error: --config requires a file path" >&2
+                exit 1
+            fi
+            CONFIG_FILE="$2"
+            shift 2
+            ;;
+        -a|--all)
+            ALL_MODE=true
+            shift
+            ;;
+        -h|--help)
+            SHOW_HELP=true
+            shift
+            ;;
+        -*)
+            echo "Error: Unknown option $1" >&2
+            exit 1
+            ;;
+        *)
+            FUNCTION="$1"
+            shift
+            ;;
+    esac
+done
+
+#===============================================================================
+# Load custom functions from config file
+#===============================================================================
+
+load_config() {
+    local config_file="$1"
+    if [[ -f "$config_file" ]]; then
+        # Indent each line to match the let binding level (4 spaces)
+        sed 's/^/    /' "$config_file"
+    fi
+}
+
+PHSRC=$(load_config "$CONFIG_FILE")
+
+#===============================================================================
+# Help message
+#===============================================================================
+
+show_help() {
+    cat <<'HELP'
+phs - PipeLine Haskell Script
+
+USAGE:
+    command | phs [OPTIONS] [FUNCTION]
+    phs [OPTIONS] [FUNCTION] < file
+
+OPTIONS:
+    -c, --config FILE   Use custom config file instead of ~/.phsrc
+    -a, --all          Process all lines at once (function type: [String] -> a)
+    -h, --help         Show this help message
+
+DESCRIPTION:
+    Apply a Haskell function to each line of input.
+    The function can be any type: String -> a (where 'a' has a Show instance)
+    With --all option, process all lines at once: [String] -> a
+    If no function is specified, 'id' is used (returns input as-is).
+
+EXAMPLES:
+    # String -> Int: Count characters
+    echo "hello" | phs 'length'
+
+    # String -> String: Reverse each line
+    cat file.txt | phs 'reverse'
+
+    # String -> Int: Sum numbers on each line
+    echo "1 2 3" | phs 'sum . map read . words'
+
+    # String -> [String]: Split into words
+    echo "hello world" | phs 'words'
+
+    # String -> (Int, String): Return tuple
+    echo "test" | phs '\s -> (length s, s)'
+
+    # Lambda functions can be used
+    echo "hello" | phs '\s -> s ++ " world"'
+    seq 10 | phs '\x -> let t = read x in t * t'
+
+    # --all mode: Process all lines at once
+    seq 1 10 | phs --all 'sum . map read'        # Sum all numbers
+    cat file.txt | phs --all 'sort'               # Sort all lines
+    cat file.txt | phs --all 'take 5'             # First 5 lines
+    cat file.txt | phs --all 'reverse'            # Reverse line order
+    seq 1 100 | phs --all 'length'                # Count total lines
+
+BUILT-IN FUNCTIONS:
+    # From Prelude
+    length, reverse, take, drop, filter, map, words, unwords, lines, unlines
+
+    # From Data.List
+    sort, nub, group
+
+    # From Data.Char
+    isDigit, isAlpha, isSpace, toUpper, toLower
+
+REQUIREMENTS:
+    GHC (Glasgow Haskell Compiler) must be installed
+
+MORE INFO:
+    https://github.com/Kohei-Wada/phs
+HELP
+}
+
+#===============================================================================
+# Haskell program generation
+#===============================================================================
+
+# Generate the common let bindings for built-in functions and user config
+generate_let_bindings() {
+    cat <<EOF
+    f = $FUNCTION
+    -- User-defined functions from config file
+$PHSRC
+    -- Built-in functions from Data.List and Data.Char
+    sort = Data.List.sort
+    nub = Data.List.nub
+    group = Data.List.group
+    isDigit = Data.Char.isDigit
+    isAlpha = Data.Char.isAlpha
+    isSpace = Data.Char.isSpace
+    toUpper = Data.Char.toUpper
+    toLower = Data.Char.toLower
+    isInfixOf = Data.List.isInfixOf
+EOF
+}
+
+# Generate Haskell program for line-by-line processing
+generate_line_program() {
+    cat <<EOF
+let
+$(generate_let_bindings)
+in
+    getContents >>= \x -> mapM_ print $ map f $ lines $ x
+EOF
+}
+
+# Generate Haskell program for all-lines processing
+generate_all_program() {
+    cat <<EOF
+let
+$(generate_let_bindings)
+in
+    getContents >>= \x -> print $ f $ lines $ x
+EOF
+}
+
+# Create the appropriate Haskell program based on mode
+create_program() {
+    if [[ "$ALL_MODE" == "true" ]]; then
+        generate_all_program
+    else
+        generate_line_program
+    fi
+}
+
+#===============================================================================
+# Main execution
+#===============================================================================
+
+main() {
+    # Show help if requested
+    if [[ "$SHOW_HELP" == "true" ]]; then
+        show_help
+        exit 0
+    fi
+
+    # Generate and execute the Haskell program
+    local program
+    program=$(create_program)
+
+    # Execute the Haskell program (show GHC errors to user)
+    ghc -e "$program"
+}
+
+# Run main function
+main "$@"

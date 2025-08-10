@@ -1,0 +1,6 @@
+---
+config:
+  MD013: false   # allow long line length
+  MD025: false   # allow single h1
+  MD033: false   # allow inline html
+...
